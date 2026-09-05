@@ -56,6 +56,7 @@ class Footswitch(controller.StatefulController):
         self.pixel = pixel
         self.longpress_groups: list[str] = []
         self.disabled = False
+        self.hide_icon = False
         self.taptempo = taptempo
 
         if adc_input and gpio_input:

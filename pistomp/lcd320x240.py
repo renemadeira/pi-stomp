@@ -862,11 +862,24 @@ class Lcd:
         # unbound slots get a placeholder that only toggles its indicator.
         # Dots are evenly spaced across the 320px strip so the row reads as a
         # linear LED strip mirroring the physical hardware, regardless of count.
-        num_fs = self.handler.get_num_footswitches() if self.handler else len(self.footswitches)
+        hidden_count = sum(fs.hide_icon for fs in self.footswitches)
+        if hidden_count:
+            num_fs = len(self.footswitches) - hidden_count
+        else:
+            num_fs = self.handler.get_num_footswitches() if self.handler else len(self.footswitches)
         pitch = self.get_footswitch_pitch(num_fs)
         slot_w = pitch
+        visible_slot = 0
         for fs in sorted(self.footswitches, key=lambda f: f.id):
-            x = pitch * fs.id
+            # Physical snapshot LEDs still follow the active preset when hidden.
+            if fs.preset_callback_arg is not None:
+                active = self.current is not None and self.current.preset_index == fs.preset_callback_arg
+                fs.toggled = active
+                fs.set_led(active)
+            if fs.hide_icon:
+                continue
+            x = pitch * (visible_slot if hidden_count else fs.id)
+            visible_slot += 1
             if fs.preset_callback_arg is not None:
                 label = self.footswitch_label(fs, slot_w)
                 fs.set_display_label(label)
@@ -874,9 +887,6 @@ class Lcd:
                 # would drop the label to the near-black unbound tone.
                 color = FootswitchWidget.DEFAULT_COLOR
                 action = None
-                active = self.current is not None and self.current.preset_index == fs.preset_callback_arg
-                fs.toggled = active
-                fs.set_led(active)  # a press never touches toggled for preset switches
             elif fs.parameter is not None:
                 label = self.footswitch_label(fs, slot_w)
                 fs.set_display_label(label)
@@ -901,14 +911,17 @@ class Lcd:
         self.footswitch_panel.refresh()
 
     def update_footswitch(self, footswitch):
+        if footswitch is None:
+            return
+        if footswitch.preset_callback_arg is not None:
+            active = self.current is not None and self.current.preset_index == footswitch.preset_callback_arg
+            footswitch.toggled = active
+            footswitch.set_led(active)
         for wfs in self.w_footswitches:
             if wfs.object == footswitch:
                 slot_w = wfs.box.width if wfs.box is not None else self.footswitch_width
                 if footswitch.preset_callback_arg is not None:
                     footswitch.set_display_label(self.footswitch_label(footswitch, slot_w))
-                    active = self.current is not None and self.current.preset_index == footswitch.preset_callback_arg
-                    footswitch.toggled = active
-                    footswitch.set_led(active)
                     wfs.color = FootswitchWidget.DEFAULT_COLOR
                 elif footswitch.parameter is not None:
                     # Binding may be new (e.g. MIDI learn) — reflect label + color.

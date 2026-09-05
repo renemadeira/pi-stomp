@@ -170,3 +170,14 @@ def test_explicit_null_clears_overlay_sections():
     assert effective.external_midi.get("enabled") is False
     assert effective.external_midi.get("messages") == {}
     assert effective.blend_snapshots == ()
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_hide_icon_accepts_boolean(value):
+    _parse({"hardware": {"footswitches": [{"id": 0, "hide_icon": value}]}})
+
+
+@pytest.mark.parametrize("value", ["true", "false", 0, 1, None])
+def test_hide_icon_rejects_non_boolean(value):
+    with pytest.raises(ConfigError):
+        _parse({"hardware": {"footswitches": [{"id": 0, "hide_icon": value}]}})

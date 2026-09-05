@@ -168,6 +168,7 @@ class FootswitchEntry(Struct, frozen=True, forbid_unknown_fields=True):
     bypass: BypassMode | None | UnsetType = UNSET
     color: str | None | UnsetType = UNSET
     disable: FootswitchDisable = UNSET
+    hide_icon: bool | UnsetType = UNSET
 
     def __post_init__(self) -> None:
         _check_routing(self.midi_port, self.midi_channel)

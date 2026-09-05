@@ -51,6 +51,24 @@ To test a package on the device before you commit it, install it into that venv:
 ssh pistomp@pistomp.local '/opt/pistomp/venvs/pi-stomp/bin/python -m pip install <package>'
 ```
 
+## Hiding footswitch icons
+
+Add `hide_icon: true` to an existing entry under `hardware.footswitches` in
+`/home/pistomp/data/config/default_config.yml`, keeping its GPIO and other settings:
+
+```yaml
+hardware:
+  footswitches:
+    - id: 0
+      # Keep the existing hardware settings here.
+      hide_icon: true
+```
+
+Restart pi-Stomp after changing the global configuration. The switch and its
+physical LED remain active, and the remaining LCD icons fill the available strip.
+Omit the option (default: `false`) to keep the existing display layout. A
+pedalboard's `config.yml` can override it; `hide_icon: false` shows the icon again.
+
 ## Running tests
 
 Run tests using `pytest` in the virtual environment. There is a Github Actions workflow that runs this in CI as well.

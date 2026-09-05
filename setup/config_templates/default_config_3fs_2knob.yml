@@ -22,6 +22,7 @@ hardware:
   #   midi_CC: msg to send (0 - 127)
   #   longpress: The name of a handler method to call when switch is long-pressed
   #
+  # hide_icon: true hides only the LCD icon; the switch and physical LED stay active.
   footswitches:
   - id: 0
     debounce_input: 0

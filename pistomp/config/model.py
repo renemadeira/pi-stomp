@@ -98,6 +98,7 @@ class FootswitchBinding:
     uses_relay: bool
     color: str | None
     disable: bool
+    hide_icon: bool = False
 
 
 @dataclass(frozen=True)

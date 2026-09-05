@@ -278,6 +278,7 @@ class Hardware(ABC):
                     taptempo=switch_taptempo,
                 )
             logging.debug("Created Footswitch %d, Midi Chan: %d, CC: %s", b.id, b.midi_channel, b.midi_CC)
+            fs.hide_icon = b.hide_icon
             self.footswitches.append(fs)
             self.register_controller(fs)
 
@@ -356,6 +357,7 @@ class Hardware(ABC):
     def __apply_footswitch(self, fs: Footswitch.Footswitch, binding: FootswitchBinding) -> None:
         fs.toggled = False
         fs.disabled = binding.disable
+        fs.hide_icon = binding.hide_icon
         fs.set_display_label(None)
         fs.set_category(None)
         fs.clear_relays()

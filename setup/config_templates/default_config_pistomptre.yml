@@ -31,6 +31,7 @@ hardware:
   #                               A name shared by two or more switches is a chord: long-pressing them
   #                               together runs the shared action instead of each switch's own.
   #
+  # hide_icon: true hides only the LCD icon; the switch and physical LED stay active.
   footswitches:
   - id: 0
     adc_input: 0

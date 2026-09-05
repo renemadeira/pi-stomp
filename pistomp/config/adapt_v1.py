@@ -105,6 +105,7 @@ def _footswitch(entry: v1.FootswitchEntry, midi_channel: int) -> FootswitchBindi
         uses_relay=_nullable(entry.bypass) in RELAY_BYPASS,
         color=_nullable(entry.color),
         disable=_value(entry.disable, False),
+        hide_icon=_value(entry.hide_icon, False),
     )
 
 
