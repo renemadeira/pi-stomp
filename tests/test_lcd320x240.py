@@ -957,3 +957,63 @@ def test_at_most_one_title_scrolls(long_title_lcd, fake_clock):
         assert len(moving()) <= 1
         assert pb_title.scroll_offset == 0
     assert preset_title.scroll_offset > 0
+
+
+def _setup_analog_controls(instance, control_ids):
+    from pistomp.analogmidicontrol import AnalogMidiControl
+
+    setup_main_ui(instance)
+    controls = []
+    assignments = {}
+    for slot, control_id in enumerate(control_ids):
+        control = MagicMock(spec=AnalogMidiControl)
+        control.id = control_id
+        control.type = ControlType.EXPRESSION if slot == 0 else ControlType.KNOB
+        control.parameter = None
+        control.last_read = slot * 127
+        controls.append(control)
+        assignments[f"effect:gain{control_id}"] = {Token.ID: control_id, Token.TYPE: control.type}
+    nav = MagicMock(id=0, type=ControlType.NAV)
+    instance.handler.hardware.analog_controls = controls
+    instance.handler.hardware.encoders = [nav]
+    instance.handler.active_blend_mode = None
+    instance.draw_analog_assignments(assignments)
+    return controls, assignments
+
+
+@pytest.mark.parametrize("control_ids", [[], [0], [0, 1, 2, 3], [0, 1, 2, 3, 4],
+                                         [1, 3, 5, 7, 9], [0, 1, 2, 3, 4, 5, 6, 7], [2, 6, 9, 12]])
+def test_analog_controls_fit_strip_and_track_values(lcd, control_ids):
+    from pistomp.analogmidicontrol import as_midi_value
+    from uilib.gridpanel import CHANNEL, TILE_W
+
+    instance, _ = lcd
+    controls, _ = _setup_analog_controls(instance, control_ids)
+    icons = instance.w_controls
+    assert len(icons) == max(4, len(control_ids))
+    assert [icon.object for icon in icons if icon.object is not None] == controls
+    expected_width = TILE_W if len(icons) <= 4 else (320 - CHANNEL * (len(icons) - 1)) // len(icons)
+    assert all(icon.box.width == expected_width for icon in icons)
+    assert [icon.box.x0 for icon in icons] == [i * (expected_width + CHANNEL) for i in range(len(icons))]
+    assert all(0 <= icon.box.x0 < icon.box.x1 <= 320 for icon in icons)
+    instance.poll_updates()
+    for icon in icons:
+        if icon.object is not None:
+            assert icon.progress == pytest.approx(as_midi_value(icon.object.last_read) / 127)
+    if controls:
+        controls[-1].last_read = 1023
+        instance.poll_updates()
+        assert next(icon for icon in icons if icon.object is controls[-1]).progress == 1
+
+
+def test_five_analog_controls_snapshot_and_rebuild(lcd, snapshot):
+    instance, _ = lcd
+    controls, assignments = _setup_analog_controls(instance, [0, 1, 2, 3, 4])
+    instance.poll_updates()
+    snapshot("five_controls")
+    old_icons = list(instance.w_controls)
+    instance.handler.hardware.analog_controls = controls[:3]
+    instance.draw_analog_assignments(dict(list(assignments.items())[:3]))
+    assert len(instance.w_controls) == 4
+    assert all(icon.box.width == 74 for icon in instance.w_controls)
+    assert all(icon.parent is None for icon in old_icons)

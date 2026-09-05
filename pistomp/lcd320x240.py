@@ -1200,15 +1200,34 @@ class Lcd:
 
     # Analog Assignments (Tweak, Expression Pedal, etc.)
     def draw_analog_assignments(self, controllers):
-        # Position analog control bars to align exactly with the plugin grid
-        # columns above them. Uses the same column pitch (TILE_W + CHANNEL) and
-        # tile width (TILE_W) as GridPanel so the progress bars line up with
-        # the plugin tiles left edge and width.
+        # Keep the plugin-grid widths for up to four controls. Larger rows
+        # share the strip, and display slots are independent of hardware IDs.
+        hardware_controls = {}
+        for ac in self.handler.hardware.analog_controls + self.handler.hardware.encoders:
+            if ac.id is not None and ac.type != ControlType.NAV:
+                hardware_controls.setdefault(ac.id, ac)
+        assignments = {
+            int(value[Token.ID]): (key, value)
+            for key, value in controllers.items()
+            if value.get(Token.ID) is not None
+        }
+        control_ids = sorted(hardware_controls.keys() | assignments.keys())
         minimum = 4 if self.handler.hardware.version >= 3 else 3
-        num = max(minimum, len(controllers) + 1)
-        pitch = TILE_W + CHANNEL
+        # Retain unassigned slots on standard hardware without creating gaps
+        # or extra slots when IDs are sparse.
+        for control_id in range(minimum):
+            if len(control_ids) >= minimum:
+                break
+            if control_id not in control_ids:
+                control_ids.append(control_id)
+        control_ids.sort()
+        num = len(control_ids)
+        control_width = TILE_W
+        if num > 4:
+            control_width = (self.display_width - CHANNEL * (num - 1)) // num
+        pitch = control_width + CHANNEL
         height_per_control = 19
-        text_per_control = TILE_W - 16  # minus height of control icon
+        text_per_control = max(0, control_width - 16)  # minus height of control icon
 
         # clean up previous control widgets
         for w in self.w_controls:
@@ -1216,23 +1235,12 @@ class Lcd:
         self.w_controls = []
 
         y = 56  # vertical position on screen
-        for i in range(0, num):
-            x = i * pitch
-            k = None
-            v = None
-            for key, value in controllers.items():
-                id = util.DICT_GET(value, Token.ID)
-                if id is not None and int(id) == i:
-                    k = key
-                    v = value
-                    break
+        for slot, control_id in enumerate(control_ids):
+            x = slot * pitch
+            k, v = assignments.get(control_id, (None, None))
 
-            # Look up the actual control instance for progress bar tracking
-            analog_control = None
-            for ac in self.handler.hardware.analog_controls + self.handler.hardware.encoders:
-                if ac.id == i and ac.type != ControlType.NAV:
-                    analog_control = ac
-                    break
+            # Keep each value meter linked to its physical controller.
+            analog_control = hardware_controls.get(control_id)
 
             # Substitute BlendMode object if this control is the blend mode input
             icon_object = analog_control
@@ -1246,9 +1254,9 @@ class Lcd:
             if k is None:
                 # Non-mapped control
                 name = "none"
-                control_type = (
-                    ControlType.EXPRESSION if i == 0 else ControlType.KNOB
-                )  # HACK cuz we don't know type of unmapped
+                control_type = ControlType.EXPRESSION if control_id == 0 else ControlType.KNOB
+                if analog_control is not None and analog_control.type == ControlType.EXPRESSION:
+                    control_type = ControlType.EXPRESSION
                 subtitle = (
                     "Expression pedal (unassigned)" if control_type == ControlType.EXPRESSION else "Knob (unassigned)"
                 )
@@ -1311,7 +1319,7 @@ class Lcd:
             w = None
             if control_type == ControlType.KNOB:
                 w = Icon(
-                    box=Box.xywh(x, y, TILE_W, height_per_control),
+                    box=Box.xywh(x, y, control_width, height_per_control),
                     text=name,
                     text_color=text_color,
                     parent=self.main_panel,
@@ -1326,7 +1334,7 @@ class Lcd:
                 self.w_controls.append(w)
             elif control_type == ControlType.EXPRESSION:
                 w = Icon(
-                    box=Box.xywh(x, y, TILE_W, height_per_control),
+                    box=Box.xywh(x, y, control_width, height_per_control),
                     text=name,
                     text_color=text_color,
                     parent=self.main_panel,
